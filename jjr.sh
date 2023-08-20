@@ -87,7 +87,7 @@ write_to_cartridge() {
     else
         printf "\r%s" "$FAIL Writing failed"
     fi
-    slow_echo
+    echo
 
 }
 
@@ -127,7 +127,7 @@ copy_from_cartridge() {
     else
         printf "\r%s" "$FAIL Could not copy ${ylw}${file}${res}"
     fi
-    slow_echo
+    echo
 }
 
 copy_photos_from_cartridge() {
@@ -170,34 +170,43 @@ copy_photos_from_cartridge() {
     if [ -z "$all_photos" ]
     then
         printf "\r%s" "$FAIL No photos found"
+        echo
         exit 1
     fi
 
-    printf "\r%s" "$INFO ${ylw}$total_count${res} photo(s) found on cartridge"
-    slow_echo
+    printf "\r%s" "$SUCC ${ylw}$total_count${res} photo(s) found on cartridge"
+    echo
 
+    i=1
     duplicates=0
     for photo in $(ls -l "$destination" 2> /dev/null | grep -E '*.bmp' | awk '{ print $NF }')
     do
+        frame=${LOADING[$i]}
+        printf "\r%s" "$frame Checking for duplicates in $destination_message..."
         photo_md5=$(md5sum ${destination}${photo} 2> /dev/null | awk '{ print $1 }')
         if echo -e "$all_photos" | grep -q "$photo_md5"
         then
             ((duplicates=duplicates+1))
             all_photos=$(echo -e "$all_photos" | sed "/^$photo_md5.*$/d" 2>/dev/null)
         fi
+        ((i=i+1))
+        [ $i -eq 9 ] && i=0
     done
 
     all_photos=$(echo -e "$all_photos" | sed "/^$/d")
 
     if [ -z "$all_photos" ]
     then
-        slow_echo "$INFO All the photos are already present in $destination_message"
+        printf "\r%s" "$INFO All photos already present in $destination_message"
+        echo
         exit 0
     fi
 
     if [ $duplicates -gt 0 ]
     then
-        slow_echo "$INFO Skipping ${ylw}${duplicates}${res} photo(s) as they are already present in $destination_message"
+        printf "\r%s" "$INFO Skipping ${ylw}${duplicates}${res} photo(s) as they are already present in $destination_message"
+        echo
+        exit 0
     fi
 
     count=1
@@ -225,11 +234,11 @@ copy_photos_from_cartridge() {
     if [ $failed -gt 0 ]
     then
         printf "\r%s" "$FAIL Failed to copy $failed photo(s)"
-        slow_echo
+        echo
         exit 1
     else
-        printf "\r%s" "$SUCC All photos have been copied to ${destination_message}"
-        slow_echo
+        printf "\r%s" "$SUCC Photos copied to ${destination_message}"
+        echo
     fi
 
 }
@@ -250,7 +259,7 @@ read_debug_file() {
         echo "$line"
         sleep 0.01
     done <<< $content
-    slow_echo
+    echo
 
 }
 
@@ -269,7 +278,7 @@ set-mode() {
         if [[ ! $new_mode =~ ^(UPDATE|AUTO|CAM|GBC|GBA|MGBA[0-7]|MULTI[1-4]|ECSD|CPLD|NPC|FCE[10])$ ]]
         then
             slow_echo "$FAIL Unknown mode: ${ylw}${new_mode}${res}, following modes are supported:"
-            slow_echo
+            sleepy_echo
             sleepy_echo "           ${ylw}UPDATE           ${res}"
             sleepy_echo "           ${ylw}AUTO             ${res}"
             sleepy_echo "           ${ylw}GBC              ${res}"
@@ -280,8 +289,8 @@ set-mode() {
             sleepy_echo "           ${ylw}CPLD             ${res}"
             sleepy_echo "           ${ylw}NPC              ${res}"
             sleepy_echo "           ${ylw}FCE${cyn}[10]    ${res}"
-            sleepy_echo "           ${ylw}GAM              ${res}"
-            slow_echo
+            sleepy_echo "           ${ylw}CAM              ${res}"
+            sleepy_echo
 
             exit 1
         fi
@@ -309,7 +318,7 @@ set-mode() {
 
     wait $pid
     printf "\r%s" "$INFO Finished setting mode to: ${ylw}${new_mode}${res}"
-    slow_echo
+    echo
 
     rm -f /tmp/mode.tmp
 
@@ -370,7 +379,7 @@ refresh() {
 
             wait $pid
             printf "\r%s" "$SUCC Refreshing Joey Jr..."
-            slow_echo
+            echo
 
             rm -f /tmp/mode.tmp
 
@@ -393,7 +402,7 @@ wait_for_joey() {
         if [ ! -z "$(lsblk | grep BENNVENN)" ]
         then
             printf "\r%s" "$SUCC Joey Jr. device reconnected"
-            slow_echo
+            echo
             return 0
         else
             continue
@@ -401,7 +410,7 @@ wait_for_joey() {
     done
 
     printf "\r%s" "$FAIL Joey Jr. did not recconect"
-    slow_echo
+    echo
     exit 1
 
 }
@@ -500,19 +509,20 @@ fi
 [ -z "$BENNVENN" ] && slow_echo "$FAIL Joey Jr. is not connected" && exit 1
 
 # Print information about detected Joey Jr.
-slow_echo "$INFO Detected Joey Jr. device"
+slow_echo "$INFO Joey Jr. device found"
 sleepy_echo
-sleepy_echo "         ${cyn}Device:                     ${ylw}/dev/${DEVICE}${res}"
-sleepy_echo "         ${cyn}Mount point:                ${ylw}${MOUNT_POINT}${res}"
+sleepy_echo "         ${cyn}Device:              ${ylw}/dev/${DEVICE}${res}"
+sleepy_echo "         ${cyn}Mount point:         ${ylw}${MOUNT_POINT}${res}"
 sleepy_echo
 
 get_joey_info
 
-sleepy_echo "         ${cyn}Joey Jr. firmware version:  ${ylw}${vers}${res}"
-sleepy_echo "         ${cyn}Current mode set:           ${ylw}${mode}${res}"
-sleepy_echo "         ${cyn}Current ROM title:          ${ylw}${game}${res}"
-sleepy_echo "         ${cyn}Checksum correct:           ${ylw}${chsm}${res}"
-sleepy_echo "         ${cyn}ROM flashable:              ${ylw}${flsh}${res}"
+sleepy_echo "         ${cyn}Firmware version:    ${ylw}${vers}${res}"
+sleepy_echo "         ${cyn}Mode set:            ${ylw}${mode}${res}"
+sleepy_echo
+sleepy_echo "         ${cyn}Detected ROM:        ${ylw}${game}${res}"
+sleepy_echo "         ${cyn}Checksum correct:    ${ylw}${chsm}${res}"
+sleepy_echo "         ${cyn}ROM flashable:       ${ylw}${flsh}${res}"
 sleepy_echo
 
 # If no option passed, exit
@@ -528,6 +538,8 @@ case $1 in
                     exit 1
                 fi
                 write_to_cartridge $3 37
+                refresh
+                wait_for_joey
                 ;;
             "sram")
                 check_file_argument "<SRAM_FILE>" "$3"
@@ -575,6 +587,9 @@ case $1 in
         if [ "$mode" = "UPDATE" ]
         then
             write_to_cartridge $2 66469
+            sleep 1
+            refresh
+            wait_for_joey
         else
             slow_echo "$FAIL Could not set mode to: ${ylw}UPDATE${res}"
         fi
